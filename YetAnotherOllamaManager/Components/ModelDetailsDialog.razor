@@ -1,0 +1,68 @@
+﻿@using System.Text.Json
+
+<MudDialog>
+    <DialogContent>
+        @if (ModelDetails != null)
+        {
+            <MudTable Items="GetProperties(ModelDetails)" Class="mt-4">
+                <HeaderContent>
+                    <MudTh>Property</MudTh>
+                    <MudTh>Value</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    @if (context is var property)
+                    {
+                        <MudTd>@property.Key</MudTd>
+                        <MudTd>@property.Value?.ToString()</MudTd>
+                    }
+                </RowTemplate>
+            </MudTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public OllamaModelInformationResult? ModelDetails { get; set; }
+
+
+    private void Submit() => MudDialog?.Close(DialogResult.Ok(true));
+
+    private void Cancel() => MudDialog?.Cancel();
+
+    private static IEnumerable<KeyValuePair<string, object>> GetProperties(object obj)
+    {
+        var jsonOptions = new JsonSerializerOptions { WriteIndented = true }; // Enable JSON pretty-printing
+
+        return obj.GetType()
+            .GetProperties()
+            .SelectMany(prop => {
+                var value = prop.GetValue(obj);
+
+                if (value is null || value.GetType().IsPrimitive || value is string)
+                    return [new KeyValuePair<string, object>(prop.Name, value)];
+
+                // Handle collections (List<T>, etc.) by displaying each item individually
+                if (value is IEnumerable<object> enumerable)
+                    return enumerable
+                        .SelectMany((item, index) => 
+                            GetProperties(item)
+                                .Select(kv => 
+                                    new KeyValuePair<string, object>
+                                        (prop.Name + "[" + index + "]", kv.Value)));
+
+                // Handle complex types by displaying their JSON representation as a single value
+                var json = JsonSerializer.Serialize(value, options: jsonOptions);
+                return [new KeyValuePair<string, object>(prop.Name, json)];
+            });
+    }
+
+
+}

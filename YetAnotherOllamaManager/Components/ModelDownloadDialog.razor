@@ -1,0 +1,127 @@
+﻿@using System.IO
+@using System.Text.Json
+@using System.Threading
+
+<MudDialog>
+    <DialogContent>
+        <MudText>Status: @ProgressText</MudText>
+        <MudProgressLinear Indeterminate="Indeterminate" Color="Color.Primary" Size="Size.Large" Value="ProgressPercentage" Class="my-7">
+            <small style="color: white">
+                @if (!Indeterminate)
+                {
+                    <b>@ProgressPercentage.ToString("n2")%</b>
+                }
+            </small>
+        </MudProgressLinear>
+    </DialogContent>
+</MudDialog>
+
+@if (ShouldClose)
+{
+    MudDialog?.Close();
+}
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public Stream? DownloadStream { get; set; }
+
+    public float ProgressPercentage { get; set; } = 0;
+    private string ProgressText { get; set; } = "";
+    public bool Indeterminate => ProgressText == "pulling manifest ";
+    private DownloadSpeed DownloadSpeed { get; set; } = new();
+
+    private bool ShouldClose { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        _ = Task.Run(async () => await UpdateProgressStatus());
+    }
+    private async Task UpdateProgressStatus()
+    {
+        if (DownloadStream == null) throw new InvalidOperationException("Stream cannot be null");
+
+        using var tokenSource = SetupCancellationTokenSourceAndRender(out var token);
+        try
+        {
+            using var reader = new StreamReader(DownloadStream);
+            while (reader.EndOfStream == false)
+            {
+                var data = await GetData(reader, token);
+
+                if (UpdateProgress(data)) break;
+            }
+
+            ShouldClose = true;
+        }
+        catch (Exception ex)
+        {
+            ProgressText = ex.Message;
+            await Task.Delay(1000, token);
+        }
+        finally
+        {
+            ShouldClose = true;
+            await tokenSource.CancelAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    private static async Task<DownloadProgress?> GetData(StreamReader reader, CancellationToken token)
+    {
+        DownloadProgress? data = null;
+
+        var line = await reader.ReadLineAsync(token);
+        if (line == null) return data;
+        data = JsonSerializer.Deserialize<DownloadProgress>(line);
+        return data;
+    }
+    private CancellationTokenSource SetupCancellationTokenSourceAndRender(out CancellationToken token)
+    {
+
+        CancellationTokenSource? tokenSource = null;
+        try
+        {
+            tokenSource = new CancellationTokenSource();
+
+            // The cancellation token will be used to communicate cancellation to tasks
+            token = tokenSource.Token;
+
+            var cancellationToken = token;
+            _ = Task.Run(async () => {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Delay(300, cancellationToken);
+                }
+            }, token);
+            return tokenSource;
+        }
+        catch
+        {
+            tokenSource?.Dispose();
+            throw;
+        }
+    }
+    private bool UpdateProgress(DownloadProgress? data)
+    {
+        if (data == null) return false;
+        
+        var completionStatus = string.Empty;
+        if (data is { Total: not null, Completed: not null })
+        {
+            var speedAndTime = DownloadSpeed.UpdateDownloadProgress(data.Total.Value, data.Completed.Value, DateTime.Now);
+            completionStatus = $"(downloaded {data.Completed.ToString().ConvertToSize()} " +
+                               $"out of {data.Total.ToString().ConvertToSize()}, " +
+                               $"Speed: {speedAndTime.SmoothedSpeedMBps:F2} MB/s, " +
+                               $"estimated time: {speedAndTime.SmoothedEstimatedTime.Minutes} minutes)";
+        }
+
+        ProgressText = $"{data.Status} {completionStatus}";
+        ProgressPercentage = data.CompletedPercentage;
+        return data.Status?.Contains("success", StringComparison.InvariantCultureIgnoreCase) == true;
+    }
+
+}

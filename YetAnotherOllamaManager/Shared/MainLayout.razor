@@ -1,0 +1,55 @@
+﻿@inherits LayoutComponentBase
+@inject StatusUpdateService StatusUpdateService
+@implements IDisposable
+
+<MudThemeProvider/>
+<MudPopoverProvider/>
+<MudDialogProvider
+    FullWidth="true"
+    MaxWidth="MaxWidth.ExtraLarge"
+    CloseButton="true"
+    BackdropClick="true"
+    NoHeader="false"
+    Position="DialogPosition.Center"
+    CloseOnEscapeKey="true"/>
+<MudSnackbarProvider/>
+
+<div class="main">
+
+    <div class="top-row px-2">
+        @if (ShowEvent)
+        {
+            @EventText
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
+            @* <a href="http://blazor.net" target="_blank" class="ml-md-auto">About</a> *@
+        }
+            <MudIconButton Href="Settings" Disabled="ShowEvent"
+                           Icon="@Icons.Material.Filled.Settings" aria-label="settings"></MudIconButton>
+    </div>
+
+    <div class="content px-4">
+        @Body
+    </div>
+</div>
+
+@code
+{
+    private bool ShowEvent { get; set; }
+    private string EventText { get; set; } = "";
+
+    protected override void OnInitialized()
+    {
+        StatusUpdateService.EventFired += StatusUpdateServiceOnEventFired;
+        base.OnInitialized();
+    }
+    private async Task StatusUpdateServiceOnEventFired(object? sender, EventFiredEventArgs args)
+    {
+        ShowEvent = (bool)args.Args[0];
+        EventText = (string)args.Args[1];
+        await InvokeAsync(StateHasChanged);
+    }
+    public void Dispose()
+    {
+        StatusUpdateService.EventFired -= StatusUpdateServiceOnEventFired;
+    }
+}

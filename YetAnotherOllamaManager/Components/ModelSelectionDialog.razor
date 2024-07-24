@@ -1,0 +1,68 @@
+﻿<Virtualize Items="ModelsFromInternet?.Models" Context="model">
+    <Card ShowSideBar="false" OnRowDoubleClickFunc="() => { ModelName = model.Name; return Task.CompletedTask; }">
+        <HeaderTemplate>
+            <h5 class="mt-3">@model.Name</h5>
+        </HeaderTemplate>
+        <BodyTemplate>
+            <div>@model.Description</div>
+            @if (ModelName != null && ModelName == model.Name)
+            {
+                @* <div>Available tags</div> *@
+                @* <MudSelect @bind-Value="ModelTag" T="string" Label="Quants" AnchorOrigin="Origin.BottomCenter"> *@
+                @*     @foreach (var tag in model.Tags) *@
+                @*     { *@
+                @*         <MudSelectItem Value="tag" /> *@
+                @*     } *@
+                @* </MudSelect> *@
+                <div style="margin-top: 25px">
+                    <MudExSelect Variant="Variant.Text"
+                                 @bind-SelectedValues="SelectedTags"
+                                 MultiSelection="false"
+                                 SelectAll="true"
+                                 GroupBy="@(x => x)"
+                                 PopoverAnimation="AnimationType.Pulse"
+                                 ToStringFunc="@(x => x)"
+                                 ItemCollection="model.Tags"
+                                 SearchBox="true"
+                                 Label="Available tags"
+                                 AnchorOrigin="Origin.BottomCenter">
+                    </MudExSelect>
+                </div>
+                if (ModelTag != null)
+                {
+                    <MudIconButton OnClick="StartDownloadAndClosePopup" Icon="@Icons.Material.Filled.Download" aria-label="download">
+                    </MudIconButton>
+                    <span>Begin download</span>
+                }
+            }
+        </BodyTemplate>
+    </Card>
+</Virtualize>
+
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public ModelInfoFromInternet? ModelsFromInternet { get; set; }
+    [Parameter]
+    public Func<string, Task>? StartDownload { get; set; }
+
+    private string? ModelName { get; set; }
+    private string? ModelTag { get; set; }
+    public IEnumerable<string> SelectedTags
+    {
+        get => [ModelTag ?? string.Empty];
+        set => ModelTag = value.First();
+    }
+
+    private void StartDownloadAndClosePopup()
+    {
+        if (StartDownload == null) return;
+        _ = Task.Run(async () => await StartDownload($"{ModelName}:{ModelTag}"));
+        MudDialog?.Close();
+
+    }
+
+}

@@ -1,0 +1,72 @@
+﻿@page "/Settings"
+@using Microsoft.Extensions.Configuration
+@inject IConfiguration Configuration
+
+<MudIconButton Href="/"
+               Icon="@Icons.Material.Filled.ArrowBack" aria-label="back">
+</MudIconButton>
+<span>Go back</span>
+
+<MudTable Items="SettingsList" T="AppConfigSettingsModel" OnRowClick="StartEditMode">
+    <HeaderContent>
+        <MudTh>
+            <MudTableSortLabel SortBy="new Func<AppConfigSettingsModel, object>(x => x.Key)">
+                Key
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel SortBy="new Func<AppConfigSettingsModel, object>(x => x.Value)">
+                Value
+            </MudTableSortLabel>
+        </MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Key">@context.Key</MudTd>
+        <MudTd DataLabel="Value">
+            @if (EditingProperty == context.Key)
+            {
+                <MudTextField T="string"
+                              Label="Value"
+                              Variant="Variant.Text"
+                              @bind-Text="context.Value"
+                              Lines="1"
+                              AutoGrow="true"/>
+                <MudIconButton OnClick="() => EditProperty(context.Key, context.Value)"
+                               Icon="@Icons.Material.Filled.Check" aria-label="check">
+                </MudIconButton>
+            }
+            else
+            {
+                @context.Value
+            }
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private List<AppConfigSettingsModel> SettingsList { get; set; } = [];
+
+    private string EditingProperty { get; set; } = "";
+
+    private void EditProperty(string key, string value)
+    {
+        StaticExtensions.UpdateAppSetting(key, value);
+        EditingProperty = string.Empty;
+    }
+    protected override void OnInitialized()
+    {
+        var configKeys = Configuration.AsEnumerable();
+        foreach (var key in configKeys)
+        {
+            SettingsList.Add(new AppConfigSettingsModel
+            {
+                Key = key.Key, Value = key.Value ?? string.Empty
+            });
+        }
+    }
+    private void StartEditMode(TableRowClickEventArgs<AppConfigSettingsModel> config)
+    {
+        if (config.MouseEventArgs.Detail < 2) return;
+        EditingProperty = config.Item?.Key ?? string.Empty;
+    }
+}

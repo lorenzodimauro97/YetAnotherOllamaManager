@@ -1,0 +1,282 @@
+﻿@page "/"
+@using Microsoft.Extensions.Configuration
+@inject OllamaService OllamaService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject StatusUpdateService StatusUpdateService
+@inject IConfiguration Configuration
+
+@if ((Models == null || Models.Count == 0) && !IsLoadingData)
+{
+    <div class="w-100 h-100 d-flex justify-content-center align-content-center">
+        No model found; Please check your OllamaUri configuration in the settings page or download a model!
+    </div>
+}
+
+<div>
+    <MudIconButton Disabled="IsLoadingData" OnClick="OpenDownloadDialog" Icon="@Icons.Material.Filled.Download" aria-label="download">
+    </MudIconButton>
+    <span style="margin-right: 30px;">Download new model</span>
+    <MudIconButton Disabled="IsLoadingData" OnClick="GetModelUpdateStatus" Icon="@Icons.Material.Filled.Update" aria-label="update">
+    </MudIconButton>
+    <span style="margin-right: 30px;">Check for model updates</span>
+    <MudText Typo="Typo.h6">Ollama Models</MudText>
+    <MudSpacer/>
+    @if (Models?.Count > 0)
+    {
+        <MudTextField @bind-Value="SearchString"
+                      Placeholder="Search"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      IconSize="Size.Medium" Class="mt-0">
+        </MudTextField>
+    }
+</div>
+
+<MudTable T="Model" Items="Models" Hover="true" Bordered="true" Striped="true" Dense="true"
+          OnRowClick="GetModelDetails" Breakpoint="Breakpoint.Sm"
+          Filter="new Func<Model, bool>(FilterFunc1)">
+    <HeaderContent>
+        <MudTh>
+            <MudTableSortLabel SortBy="new Func<Model, object>(x => x.Name)">
+                Name
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel SortBy="new Func<Model, object>(x => x.Size)">
+                Size
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel SortBy="new Func<Model, object>(x => x.ModifiedAt)">
+                Last Modified
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel SortBy="new Func<Model, object>(x => x.LastUpdate)">
+                Last Ollama Update
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Size">@context.ReadableSize</MudTd>
+        <MudTd DataLabel="Last Modified">@context.ModifiedAt.ToString("yyyy MMMM dd - HH")</MudTd>
+        <MudTd DataLabel="Last Ollama Update">
+            <div style="color: @(context.ShouldUpdate ? "green" : "inherit")">
+                @context.LastUpdate?.ToString("yyyy MMMM dd - HH")
+            </div>
+        </MudTd>
+        <MudTd DataLabel="">
+            <MudIconButton Disabled="IsLoadingData" OnClick="async () => await DeleteModel(context)" Icon="@Icons.Material.Filled.Delete" aria-label="delete">
+            </MudIconButton>
+            <MudIconButton Disabled="IsLoadingData" OnClick="async () => await OpenModelCloneDialog(context)" Icon="@Icons.Material.Filled.ContentCopy" aria-label="clone">
+            </MudIconButton>
+            @if (context.ShouldUpdate)
+            {
+                <MudIconButton Disabled="IsLoadingData" OnClick="async () => await StartUpdateModel(context)" Icon="@Icons.Material.Filled.SystemUpdateAlt" aria-label="update">
+                </MudIconButton>
+            }
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code
+{
+    private bool IsLoadingData { get; set; }
+    private List<Model>? Models { get; set; }
+    private string SearchString { get; set; } = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetModels();
+        if (bool.TryParse(Configuration["AutoObtainLastUpdatedFromOllamaLibrary"], out var result) && result)
+            _ = Task.Run(async () => await GetModelUpdateStatus());
+        await base.OnInitializedAsync();
+    }
+
+    private bool FilterFunc1(Model model) => FilterFunc(model, SearchString);
+
+    private static bool FilterFunc(Model model, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (model.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (bool.TryParse(searchString, out var parse) && model.ShouldUpdate == parse)
+            return true;
+        return false;
+    }
+
+    private async Task GetModelUpdateStatus()
+    {
+        if (Models == null) return;
+        try
+        {
+            IsLoadingData = true;
+            foreach (var model in Models)
+            {
+                await StatusUpdateService.InvokeEventFiredAsync(this, new EventFiredEventArgs([true, $"Getting last update for model {model.Name}"]));
+                model.LastUpdate = await OllamaService.GetLastUpdateAsync(model);
+                await InvokeAsync(StateHasChanged);
+            }
+            await StatusUpdateService.InvokeEventFiredAsync(this, new EventFiredEventArgs([false, string.Empty]));
+
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error while loading Model Update Status! {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsLoadingData = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task GetModels()
+    {
+        try
+        {
+            IsLoadingData = true;
+            Models = await OllamaService.GetModelsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error while loading Models! {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsLoadingData = false;
+        }
+    }
+    private async Task DeleteModel(Model model)
+    {
+        try
+        {
+            await OllamaService.DeleteModelAsync(model);
+            Models?.Remove(model);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error while removing Model {model.Name}! {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task GetModelDetails(TableRowClickEventArgs<Model> arg)
+    {
+        if (arg.Item == null || arg.MouseEventArgs.Detail < 2) return;
+        try
+        {
+            var modelDetails = await OllamaService.GetModelDetailsAsync(arg.Item);
+            await OpenModelDetailsDialog(modelDetails, arg.Item);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error while loading model details for Model {arg.Item.Name}! {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task OpenModelDetailsDialog(OllamaModelInformationResult? modelDetails, Model model)
+    {
+        var parameters = new DialogParameters<ModelDetailsDialog>
+        {
+            {
+                x => x.ModelDetails, modelDetails
+            },
+        };
+
+        await DialogService.ShowAsync<ModelDetailsDialog>($"Details for model {model.Name}", parameters);
+    }
+
+    private async Task OpenModelCloneDialog(Model model)
+    {
+        var parameters = new DialogParameters<ModelCloneDialog>
+        {
+            {
+                x => x.ModelToClone, model
+            },
+            {
+                x => x.StartCloneModel, StartCloneModel
+            },
+        };
+
+        await DialogService.ShowAsync<ModelCloneDialog>($"Clone model {model.Name}", parameters);
+    }
+    private async Task StartCloneModel(Model model, string name, string parameters)
+    {
+        try
+        {
+            await OllamaService.CloneModelAsync(model, name, parameters);
+
+            await GetModels();
+            await GetModelUpdateStatus();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error while cloning Model {model.Name}! {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task StartUpdateModel(Model model)
+    {
+        try
+        {
+            var stream = await OllamaService.UpdateModelAsync(model);
+            var parameters = new DialogParameters<ModelDownloadDialog>
+            {
+                {
+                    x => x.DownloadStream, stream
+                },
+            };
+
+            var options = new DialogOptionsEx
+            {
+                Resizeable = true, Modal = true, BackdropClick = false, CloseOnEscapeKey = false,
+                DragMode = MudDialogDragMode.Simple, CloseButton = false, MaxWidth = MaxWidth.Medium, MaxHeight = MaxHeight.Medium
+            };
+
+            await DialogService.ShowEx<ModelDownloadDialog>($"Updating model {model.Name}", parameters, options);
+
+            await GetModels();
+            await GetModelUpdateStatus();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error while updating Model {model.Name}! {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task OpenDownloadDialog()
+    {
+        try
+        {
+            var modelsFromInternet = await OllamaService.GetModelsFromInternetAsync();
+            var parameters = new DialogParameters<ModelSelectionDialog>
+            {
+                {
+                    x => x.ModelsFromInternet, modelsFromInternet
+                },
+                {
+                    x => x.StartDownload, StartDownload
+                }
+            };
+
+            var options = new DialogOptionsEx
+            {
+                Resizeable = false, DragMode = MudDialogDragMode.Simple, CloseButton = true, MaxWidth = MaxWidth.Small,
+                MaxHeight = MaxHeight.Small
+            };
+
+            await DialogService.ShowEx<ModelSelectionDialog>($"Download new model", parameters, options);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error selecting model to download! {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task StartDownload(string modelName)
+    {
+        await StartUpdateModel(new Model
+        {
+            Name = modelName
+        });
+    }
+}

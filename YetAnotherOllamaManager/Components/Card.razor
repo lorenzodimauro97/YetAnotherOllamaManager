@@ -1,0 +1,37 @@
+﻿<div>
+
+    <div class="mt-1 mb-1 border border-1 bg-white" style="border-radius: 10px;">
+        <div>
+            <div>
+                <div class="ms-3 mt-1 mb-1">
+                    @HeaderTemplate
+                </div>
+                <div class="ms-3 mt-1 mb-1" @ondblclick="OnRowDoubleClick">
+                    @BodyTemplate
+                </div>
+                @if (ShowSideBar)
+                {
+                    <div class="ms-3 me-3 mt-2" style="background-color: @SideBarColor; padding-top: 3px; border-radius: 10px;"></div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public RenderFragment? HeaderTemplate { get; set; }  
+    [Parameter]
+    public RenderFragment? BodyTemplate { get; set; }
+    [Parameter]
+    public bool ShowSideBar { get; set; } = true;
+    [Parameter]
+    public string SideBarColor { get; set; } = "#232A3B";
+    [Parameter]
+    public Func<Task>? OnRowDoubleClickFunc { get; set;}
+
+    private async Task OnRowDoubleClick()
+    {
+        if (OnRowDoubleClickFunc != null) await OnRowDoubleClickFunc();
+    }
+}

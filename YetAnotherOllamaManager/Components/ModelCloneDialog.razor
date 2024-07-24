@@ -1,0 +1,36 @@
+﻿<MudDialog>
+    <DialogContent>
+        <MudTextField T="string" Label="Name" Variant="Variant.Text" @bind-Text="Name" Lines="1" />
+        <MudTextField T="string" Label="Parameters" Variant="Variant.Text" @bind-Text="Parameters" Lines="5" />
+        <MudIconButton OnClick="StartCloneAndClosePopup" Icon="@Icons.Material.Filled.ContentCopy" aria-label="clone">
+        </MudIconButton>
+        <span>Begin clone</span>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public required Model ModelToClone { get; set; }
+    [Parameter]
+    public Func<Model, string, string, Task>? StartCloneModel { get; set; }
+
+    private string Parameters { get; set; } = "PARAMETER num_ctx 131072";
+    public string Name { get; set; } = "";
+
+    protected override void OnInitialized()
+    {
+        Name = ModelToClone.Name;
+        base.OnInitialized();
+    }
+    private void StartCloneAndClosePopup()
+    {
+        if (StartCloneModel == null) return;
+        _ = Task.Run(async () => await StartCloneModel(ModelToClone, Name, Parameters));
+        MudDialog?.Close();
+
+    }
+
+}
