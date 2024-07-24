@@ -18,7 +18,7 @@ Windows, macOS, and Linux.
 * **Simple Chat Interface**: Implement a real-time chat feature that allows users to communicate with ollama
 servers and other users.
 * **Server Status Management**: Provide users with the ability to manipulate ollama server status, including
-starting, stopping, and restarting servers.
+starting, stopping, and restarting the ollama server interface.
 
 ## License
 
