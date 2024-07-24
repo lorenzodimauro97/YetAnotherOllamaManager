@@ -41,8 +41,8 @@ To get started with YetAnotherOllamaManager, simply download a pre-built release
 page](https://github.com/lorenzodimauro97/YetAnotherOllamaManager/releases) and follow these steps:
 
 1. Extract the downloaded archive to a directory of your choice.
-2. Open the `Settings` page in the application and update the OLLAMA API URL as needed.
-3. Run the application using the .NET runtime.
+2. Run the application as Executable.
+3. If Ollama API Url is different from localhost:11434, please update it in the Settings page of the application. There is no need to restart the application after changing it's configuration.
 
 ## Contributing
 
