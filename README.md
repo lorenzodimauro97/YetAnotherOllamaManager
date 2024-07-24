@@ -1,5 +1,6 @@
 # YetAnotherOllamaManager
-==========================
+![image](https://github.com/user-attachments/assets/46ff4299-89b1-43fc-80db-83bdab053f1d)
+
 
 A cross-platform application written in .NET 8.0 that allows users to interact with ollama models in a fast and
 convenient manner.
