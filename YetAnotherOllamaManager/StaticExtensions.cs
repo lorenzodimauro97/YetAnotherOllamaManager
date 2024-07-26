@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Text.RegularExpressions;
-
-namespace YetAnotherOllamaManager;
-
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+
+namespace YetAnotherOllamaManager;
 
 public static partial class StaticExtensions
 {
@@ -23,6 +22,8 @@ public static partial class StaticExtensions
     }
     public static DateTime? GetSecondUpdatedDateTime(this string input)
     {
+        if(input.Contains("Updated yesterday", StringComparison.InvariantCultureIgnoreCase)) return DateTime.Today.AddDays(-1);
+        
         var matches = MyRegex().Matches(input);
         if (matches.Count < 2)
             return null;
