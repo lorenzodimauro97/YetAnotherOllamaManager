@@ -16,6 +16,7 @@ public static partial class StaticExtensions
     {
         var configJson = File.ReadAllText("appsettings.json");
         var config = JsonSerializer.Deserialize<Dictionary<string, object>>(configJson);
+        if (config == null) throw new NullReferenceException($"Tried to read invalid config: {configJson}");
         config[key] = value;
         var updatedConfigJson = JsonSerializer.Serialize(config, JsonOptions);
         File.WriteAllText("appsettings.json", updatedConfigJson);
