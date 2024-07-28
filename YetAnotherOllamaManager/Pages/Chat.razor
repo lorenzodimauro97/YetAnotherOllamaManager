@@ -15,7 +15,7 @@
         @foreach (var message in Messages)
         {
             <div class="w-100 mt-4 mb-4 d-flex flex-row @(message.Role == "user" ? "justify-content-end" : "")">
-                <strong>@message.Role:</strong> @message.Content
+                <strong>@message.Role:</strong> <MultilineString Value="@message.Content"></MultilineString>
             </div>
         }
     </div>
@@ -23,12 +23,12 @@
     <div class="d-flex flex-row">
         <MudTextField @ref="TextField"
                       T="string" Disabled="IsLoadingMessage"
-                      OnKeyUp="@(async e => { if (e.Key == "Enter") await SendMessage(); })"
+                      OnKeyUp="@(async e => { if (e is { Key: "Enter", ShiftKey: false }) await SendMessage(); })"
                       Label="Write a message!"
                       Variant="Variant.Text"
                       @bind-Text="UserMessageText"
                       AutoFocus="true"
-                      Lines="1"/>
+                      Lines="2"/>
         <MudIconButton Disabled="IsLoadingMessage"
                        OnClick="SendMessage"
                        Icon="@Icons.Material.Filled.Send" aria-label="send">
