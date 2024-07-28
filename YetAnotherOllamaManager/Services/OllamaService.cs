@@ -1,11 +1,16 @@
 ﻿namespace YetAnotherOllamaManager.Services;
 
 using Components;
+using Mapster;
 using Microsoft.Extensions.Configuration;
 using Models;
+using OllamaSharp;
+using OllamaSharp.Models;
+using OllamaSharp.Models.Chat;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -17,20 +22,24 @@ public class OllamaService: IDisposable
 {
 
     private readonly HttpClient _httpClient;
+    private readonly OllamaApiClient _ollamaApiClient;
     public OllamaService(IHttpClientFactory httpClientFactory, IConfiguration configuration)
     {
+        var ollamaAddress = new Uri(configuration["OllamaUri"]
+                                           ?? throw new InvalidOperationException("Cannot find property 'OllamaUri' in configuration!"));
         _httpClient = httpClientFactory.CreateClient();
-        _httpClient.BaseAddress = new Uri(configuration["OllamaUri"]
-                                          ?? throw new InvalidOperationException("Cannot find property 'OllamaUri' in configuration!"));
+        // _httpClient.BaseAddress = new Uri(configuration["OllamaUri"]
+        //                                   ?? throw new InvalidOperationException("Cannot find property 'OllamaUri' in configuration!"));
+        _ollamaApiClient = new OllamaApiClient(ollamaAddress);
     }
 
-    public async Task<List<Model>> GetModelsAsync()
+    public async Task<List<ExtendedModel>> GetModelsAsync()
     {
-        var result = await _httpClient.GetFromJsonAsync<GetModelListResponse>("/api/tags");
-        return result?.Models ?? [];
+        var models = await _ollamaApiClient.ListLocalModels();
+        return models.Adapt<IEnumerable<ExtendedModel>>().ToList();
     }
 
-    public async Task<DateTime?> GetLastUpdateAsync(Model model)
+    public async Task<DateTime?> GetLastUpdateAsync(ExtendedModel model)
     {
         var request = new HttpRequestMessage
         {
@@ -54,36 +63,16 @@ public class OllamaService: IDisposable
             }
         }
     }
-    public async Task DeleteModelAsync(Model model)
+    public async Task DeleteModelAsync(ExtendedModel model)
     {
-        var content = new StringContent(JsonSerializer.Serialize(new
-        {
-            name = model.Name
-        }), Encoding.UTF8, "application/json");
-
-        var request = new HttpRequestMessage
-        {
-            Method = HttpMethod.Delete, RequestUri = new Uri(_httpClient.BaseAddress ?? throw new InvalidOperationException("HttpClient Base Uri is null"), "api/delete"), Content = content
-        };
-        var response = await _httpClient.SendAsync(request);
-
-        response.EnsureSuccessStatusCode();
+        await _ollamaApiClient.DeleteModel(model.Name);
     }
-    public async Task<OllamaModelInformationResult?> GetModelDetailsAsync(Model model)
+    public async Task<ShowModelResponse> GetModelDetailsAsync(ExtendedModel model)
     {
-        var content = new StringContent(JsonSerializer.Serialize(new
-        {
-            name = model.Name
-        }), Encoding.UTF8, "application/json");
-
-        var response = await _httpClient.PostAsync("/api/show", content);
-
-        response.EnsureSuccessStatusCode();
-
-        return await response.Content.ReadFromJsonAsync<OllamaModelInformationResult>();
+        return await _ollamaApiClient.ShowModelInformation(model.Name);
     }
 
-    public async Task<Stream> UpdateModelAsync(Model model)
+    public async Task<Stream> UpdateModelAsync(ExtendedModel model)
     {
         var request = new HttpRequestMessage(HttpMethod.Post,
         new Uri(_httpClient.BaseAddress ?? throw new InvalidOperationException("HttpClient Base Uri is null"),
@@ -109,7 +98,7 @@ public class OllamaService: IDisposable
 
         return await response.Content.ReadFromJsonAsync<ModelInfoFromInternet>();
     }
-    public async Task CloneModelAsync(Model model, string name, string parameters)
+    public async Task CloneModelAsync(ExtendedModel model, string name, string parameters)
     {
         var content = new StringContent(JsonSerializer.Serialize(new
         {
@@ -120,6 +109,14 @@ public class OllamaService: IDisposable
 
         response.EnsureSuccessStatusCode();
     }
+
+    public Task<Chat> GetChatInstanceAsync(string model)
+    {
+        _ollamaApiClient.SelectedModel = model;
+        return Task.FromResult(_ollamaApiClient
+            .Chat(_ => {}));
+    }
+    
     public void Dispose()
     {
         _httpClient.Dispose();

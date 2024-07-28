@@ -1,38 +1,12 @@
 ﻿namespace YetAnotherOllamaManager.Models;
 
+using OllamaSharp.Models;
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-public class BaseModelDetails
+public class ExtendedModel : Model
 {
-    [JsonPropertyName("format")]
-    public string Format { get; set; }
-
-    [JsonPropertyName("family")]
-    public string Family { get; set; }
-
-    [JsonPropertyName("families")]
-    public object Families { get; set; }
-
-    [JsonPropertyName("parameter_size")]
-    public string ParameterSize { get; set; }
-
-    [JsonPropertyName("quantization_level")]
-    public string QuantizationLevel { get; set; }
-}
-
-public class Model
-{
-    [JsonPropertyName("name")]
-    public string Name { get; set; }
-
-    [JsonPropertyName("modified_at")]
-    public DateTime ModifiedAt { get; set; }
-
-    [JsonPropertyName("size")]
-    public long Size { get; set; }// in bytes
-
     [JsonIgnore]
     public string ReadableSize
     {
@@ -65,16 +39,4 @@ public class Model
 
     [JsonIgnore]
     public bool ShouldUpdate => LastUpdate > ModifiedAt;
-
-    [JsonPropertyName("digest")]
-    public string Digest { get; set; }
-
-    [JsonPropertyName("details")]
-    public BaseModelDetails Details { get; set; }
-}
-
-public class GetModelListResponse
-{
-    [JsonPropertyName("models")]
-    public List<Model> Models { get; set; }
 }
