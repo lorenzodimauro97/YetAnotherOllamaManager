@@ -13,9 +13,9 @@
     private MudDialogInstance? MudDialog { get; set; }
 
     [Parameter]
-    public required Model ModelToClone { get; set; }
+    public required ExtendedModel ModelToClone { get; set; }
     [Parameter]
-    public Func<Model, string, string, Task>? StartCloneModel { get; set; }
+    public Func<ExtendedModel, string, string, Task>? StartCloneModel { get; set; }
 
     private string Parameters { get; set; } = "PARAMETER num_ctx 131072";
     public string Name { get; set; } = "";
