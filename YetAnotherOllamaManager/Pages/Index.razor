@@ -118,12 +118,14 @@
         try
         {
             IsLoadingData = true;
-            foreach (var model in Models)
-            {
-                await StatusUpdateService.InvokeEventFiredAsync(this, new EventFiredEventArgs([true, $"Getting last update for model {model.Name}"]));
-                model.LastUpdate = await OllamaService.GetLastUpdateAsync(model);
-                await InvokeAsync(StateHasChanged);
-            }
+            var tasks = Models.Select(UpdateModelLastStatus);
+
+            await Task.WhenAll(tasks);
+            
+            // foreach (var model in Models)
+            // {
+            //     await UpdateModelLastStatus(model);
+            // }
             await StatusUpdateService.InvokeEventFiredAsync(this, new EventFiredEventArgs([false, string.Empty]));
 
         }
@@ -136,6 +138,13 @@
             IsLoadingData = false;
             await InvokeAsync(StateHasChanged);
         }
+    }
+    private async Task UpdateModelLastStatus(ExtendedModel model)
+    {
+
+        await StatusUpdateService.InvokeEventFiredAsync(this, new EventFiredEventArgs([true, $"Getting last update for model {model.Name}"]));
+        model.LastUpdate = await OllamaService.GetLastUpdateAsync(model);
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task GetModels()
