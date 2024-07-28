@@ -36,6 +36,10 @@
 
 <MudTable T="ExtendedModel" Items="Models" Hover="true" Bordered="true" Striped="true" Dense="true"
           OnRowClick="GetModelDetails" Breakpoint="Breakpoint.Sm"
+          HorizontalScrollbar="true"
+          FixedHeader="true"
+          FixedFooter="true"
+          Height="calc(100vh - 200px)"
           Filter="new Func<ExtendedModel, bool>(FilterFunc1)">
     <HeaderContent>
         <MudTh>
