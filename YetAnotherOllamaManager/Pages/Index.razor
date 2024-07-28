@@ -1,12 +1,13 @@
 ﻿@page "/"
 @using Microsoft.Extensions.Configuration
+@using OllamaSharp.Models
 @inject OllamaService OllamaService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject StatusUpdateService StatusUpdateService
 @inject IConfiguration Configuration
 
-@if ((Models == null || Models.Count == 0) && !IsLoadingData)
+@if ((Models == null || !Models.Any()) && !IsLoadingData)
 {
     <div class="w-100 h-100 d-flex justify-content-center align-content-center">
         No model found; Please check your OllamaUri configuration in the settings page or download a model!
@@ -33,27 +34,27 @@
     }
 </div>
 
-<MudTable T="Model" Items="Models" Hover="true" Bordered="true" Striped="true" Dense="true"
+<MudTable T="ExtendedModel" Items="Models" Hover="true" Bordered="true" Striped="true" Dense="true"
           OnRowClick="GetModelDetails" Breakpoint="Breakpoint.Sm"
-          Filter="new Func<Model, bool>(FilterFunc1)">
+          Filter="new Func<ExtendedModel, bool>(FilterFunc1)">
     <HeaderContent>
         <MudTh>
-            <MudTableSortLabel SortBy="new Func<Model, object>(x => x.Name)">
+            <MudTableSortLabel SortBy="new Func<ExtendedModel, object>(x => x.Name)">
                 Name
             </MudTableSortLabel>
         </MudTh>
         <MudTh>
-            <MudTableSortLabel SortBy="new Func<Model, object>(x => x.Size)">
+            <MudTableSortLabel SortBy="new Func<ExtendedModel, object>(x => x.Size)">
                 Size
             </MudTableSortLabel>
         </MudTh>
         <MudTh>
-            <MudTableSortLabel SortBy="new Func<Model, object>(x => x.ModifiedAt)">
+            <MudTableSortLabel SortBy="new Func<ExtendedModel, object>(x => x.ModifiedAt)">
                 Last Modified
             </MudTableSortLabel>
         </MudTh>
         <MudTh>
-            <MudTableSortLabel SortBy="new Func<Model, object>(x => x.LastUpdate)">
+            <MudTableSortLabel SortBy="new Func<ExtendedModel, object>(x => x.LastUpdate)">
                 Last Ollama Update
             </MudTableSortLabel>
         </MudTh>
@@ -72,6 +73,8 @@
             <MudIconButton Disabled="IsLoadingData" OnClick="async () => await DeleteModel(context)" Icon="@Icons.Material.Filled.Delete" aria-label="delete">
             </MudIconButton>
             <MudIconButton Disabled="IsLoadingData" OnClick="async () => await OpenModelCloneDialog(context)" Icon="@Icons.Material.Filled.ContentCopy" aria-label="clone">
+            </MudIconButton>            
+            <MudIconButton Disabled="IsLoadingData" Href="@($"Chat/{context.Name.Replace('/', ';')}")" Icon="@Icons.Material.Filled.Chat" aria-label="clone">
             </MudIconButton>
             @if (context.ShouldUpdate)
             {
@@ -85,7 +88,7 @@
 @code
 {
     private bool IsLoadingData { get; set; }
-    private List<Model>? Models { get; set; }
+    private List<ExtendedModel>? Models { get; set; }
     private string SearchString { get; set; } = "";
 
     protected override async Task OnInitializedAsync()
@@ -96,9 +99,9 @@
         await base.OnInitializedAsync();
     }
 
-    private bool FilterFunc1(Model model) => FilterFunc(model, SearchString);
+    private bool FilterFunc1(ExtendedModel model) => FilterFunc(model, SearchString);
 
-    private static bool FilterFunc(Model model, string searchString)
+    private static bool FilterFunc(ExtendedModel model, string searchString)
     {
         if (string.IsNullOrWhiteSpace(searchString))
             return true;
@@ -151,7 +154,7 @@
             IsLoadingData = false;
         }
     }
-    private async Task DeleteModel(Model model)
+    private async Task DeleteModel(ExtendedModel model)
     {
         try
         {
@@ -163,7 +166,7 @@
             Snackbar.Add($"Error while removing Model {model.Name}! {ex.Message}", Severity.Error);
         }
     }
-    private async Task GetModelDetails(TableRowClickEventArgs<Model> arg)
+    private async Task GetModelDetails(TableRowClickEventArgs<ExtendedModel> arg)
     {
         if (arg.Item == null || arg.MouseEventArgs.Detail < 2) return;
         try
@@ -176,7 +179,7 @@
             Snackbar.Add($"Error while loading model details for Model {arg.Item.Name}! {ex.Message}", Severity.Error);
         }
     }
-    private async Task OpenModelDetailsDialog(OllamaModelInformationResult? modelDetails, Model model)
+    private async Task OpenModelDetailsDialog(ShowModelResponse modelDetails, ExtendedModel model)
     {
         var parameters = new DialogParameters<ModelDetailsDialog>
         {
@@ -188,7 +191,7 @@
         await DialogService.ShowAsync<ModelDetailsDialog>($"Details for model {model.Name}", parameters);
     }
 
-    private async Task OpenModelCloneDialog(Model model)
+    private async Task OpenModelCloneDialog(ExtendedModel model)
     {
         var parameters = new DialogParameters<ModelCloneDialog>
         {
@@ -202,7 +205,7 @@
 
         await DialogService.ShowAsync<ModelCloneDialog>($"Clone model {model.Name}", parameters);
     }
-    private async Task StartCloneModel(Model model, string name, string parameters)
+    private async Task StartCloneModel(ExtendedModel model, string name, string parameters)
     {
         try
         {
@@ -216,7 +219,7 @@
             Snackbar.Add($"Error while cloning Model {model.Name}! {ex.Message}", Severity.Error);
         }
     }
-    private async Task StartUpdateModel(Model model)
+    private async Task StartUpdateModel(ExtendedModel model)
     {
         try
         {
@@ -274,7 +277,7 @@
     }
     private async Task StartDownload(string modelName)
     {
-        await StartUpdateModel(new Model
+        await StartUpdateModel(new ExtendedModel
         {
             Name = modelName
         });
