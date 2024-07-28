@@ -1,0 +1,100 @@
+﻿@page "/chat/{Model}"
+@using Message=OllamaSharp.Models.Chat.Message
+@inject OllamaService OllamaService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<MudIconButton Href="/"
+               Icon="@Icons.Material.Filled.ArrowBack" aria-label="back">
+</MudIconButton>
+<span>Go back</span>
+
+<div>
+
+    <div id="messageArea" class="overflow-auto" style="height: calc(100vh - 200px)">
+        @foreach (var message in Messages)
+        {
+            <div class="w-100 mt-4 mb-4 d-flex flex-row @(message.Role == "user" ? "justify-content-end" : "")">
+                <strong>@message.Role:</strong> @message.Content
+            </div>
+        }
+    </div>
+
+    <div class="d-flex flex-row">
+        <MudTextField @ref="TextField"
+                      T="string" Disabled="IsLoadingMessage"
+                      OnKeyUp="@(async e => { if (e.Key == "Enter") await SendMessage(); })"
+                      Label="Write a message!"
+                      Variant="Variant.Text"
+                      @bind-Text="UserMessageText"
+                      AutoFocus="true"
+                      Lines="1"/>
+        <MudIconButton Disabled="IsLoadingMessage"
+                       OnClick="SendMessage"
+                       Icon="@Icons.Material.Filled.Send" aria-label="send">
+        </MudIconButton>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public required string Model { get; set; }
+
+    private List<Message> Messages { get; set; } = [];
+    private string UserMessageText { get; set; } = "";
+
+    private OllamaSharp.Chat? OLlamaChat { get; set; }
+
+    private bool IsLoadingMessage { get; set; }
+    public required MudTextField<string> TextField { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetChatInstance();
+        await base.OnInitializedAsync();
+    }
+
+    private async Task GetChatInstance()
+    {
+        try
+        {
+            OLlamaChat = await OllamaService.GetChatInstanceAsync(Model.Replace(';', '/'));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error while loading Chat! {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrEmpty(UserMessageText)) return;
+        if (OLlamaChat == null) return;
+        try
+        {
+            IsLoadingMessage = true;
+            var result = await OLlamaChat.Send(UserMessageText);
+            Messages = result.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error while sending Chat message! {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsLoadingMessage = false;
+            UserMessageText = string.Empty;
+            await InvokeAsync(StateHasChanged);
+            await TextField.FocusAsync();
+            await JsRuntime.InvokeVoidAsync("scrollMessageArea");
+        }
+    }
+}
+
+<script>
+    function scrollMessageArea(){
+    const messageArea = document.getElementById("messageArea");
+if (messageArea) {
+    messageArea.scrollTop = messageArea.scrollHeight
+    }
+}
+</script>
