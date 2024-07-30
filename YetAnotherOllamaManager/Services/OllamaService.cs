@@ -28,8 +28,8 @@ public class OllamaService: IDisposable
         var ollamaAddress = new Uri(configuration["OllamaUri"]
                                            ?? throw new InvalidOperationException("Cannot find property 'OllamaUri' in configuration!"));
         _httpClient = httpClientFactory.CreateClient();
-        // _httpClient.BaseAddress = new Uri(configuration["OllamaUri"]
-        //                                   ?? throw new InvalidOperationException("Cannot find property 'OllamaUri' in configuration!"));
+        _httpClient.BaseAddress = new Uri(configuration["OllamaUri"]
+                                          ?? throw new InvalidOperationException("Cannot find property 'OllamaUri' in configuration!"));
         _ollamaApiClient = new OllamaApiClient(ollamaAddress);
     }
 
