@@ -10,8 +10,7 @@
 <span>Go back</span>
 
 <div>
-
-    <div id="messageArea" class="overflow-auto" style="height: calc(100vh - 200px)">
+    <div id="messageArea" class="overflow-auto" style="height: calc(100vh - 300px)">
         @foreach (var message in Messages)
         {
             <div class="w-100 mt-4 mb-4 d-flex flex-row @(message.Role == "user" ? "justify-content-end" : "")">
@@ -23,12 +22,12 @@
     <div class="d-flex flex-row">
         <MudTextField @ref="TextField"
                       T="string" Disabled="IsLoadingMessage"
-                      OnKeyUp="@(async e => { if (e is { Key: "Enter", ShiftKey: false }) await SendMessage(); })"
+                      OnKeyUp="KeyBoardSendMessage"
                       Label="Write a message!"
                       Variant="Variant.Text"
                       @bind-Text="UserMessageText"
                       AutoFocus="true"
-                      Lines="2"/>
+                      Lines="7"/>
         <MudIconButton Disabled="IsLoadingMessage"
                        OnClick="SendMessage"
                        Icon="@Icons.Material.Filled.Send" aria-label="send">
@@ -87,6 +86,14 @@
             await TextField.FocusAsync();
             await JsRuntime.InvokeVoidAsync("scrollMessageArea");
         }
+    }
+    private async Task KeyBoardSendMessage(KeyboardEventArgs arg)
+    {
+        Console.WriteLine(arg.ShiftKey);
+        Console.WriteLine(arg.Key);
+        if (arg.ShiftKey
+            && arg.Key.Contains("enter", StringComparison.InvariantCultureIgnoreCase))
+            await SendMessage();
     }
 }
 
