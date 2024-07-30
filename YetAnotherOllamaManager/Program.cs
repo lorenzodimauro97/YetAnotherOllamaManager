@@ -27,7 +27,7 @@ internal class Program
         appBuilder.Services.AddScoped<StatusUpdateService>();
         appBuilder.Services.AddSingleton<IConfiguration>(provider => configuration);
         appBuilder.Services.AddHttpClient();
-
+        
         // register root component and selector
         appBuilder.RootComponents.Add<App>("app");
             
@@ -36,7 +36,8 @@ internal class Program
         // customize window
         app.MainWindow
             .SetIconFile("favicon.ico")
-            .SetTitle("Yet Another Ollama Manager");
+            .SetTitle("Yet Another Ollama Manager")
+            .SetHeight(600);
 
         AppDomain.CurrentDomain.UnhandledException += (sender, error) =>
         {
